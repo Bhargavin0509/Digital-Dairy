@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html ng-app="diaryApp">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digital Diary - All Entries</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+  
+</head>
+
+<body ng-controller="diaryController">
+    <div class="container">
+        <div class="header">
+            <nav>
+                <h1>Modify your entries </h1>
+                <ul>
+                    <li><a href="index.html">Home </a></li>
+                    <li><a href="entries.html">Modify Entry</a></li>
+                </ul>
+            </nav>
+        </div>
+
+        <div class="allEntries">
+            <!-- Display all diary entries -->
+            <div ng-repeat="entry in entries" class="entry-item">
+                <h3>Date: {{ entry.date | date:'yyyy-MM-dd' }}</h3>
+                <p>Diary Entry: {{ entry.content }}</p>
+
+                <!-- Form for updating a diary entry -->
+                <form ng-submit="updateEntry(entry._id)" class="entry-form">
+                    <input type="date" ng-model="entry.date" placeholder="Enter updated date" />
+                    <textarea ng-model="entry.content" placeholder="Enter updated content"></textarea>
+                    <div class="button-group">
+                        <button type="submit">Update</button>
+                        <button ng-click="deleteEntry(entry._id)">Delete</button>
+                    </div>
+                </form>
+            </div>
+            <div class="no-entries" ng-if="entries.length === 0">
+                <p>No entries found.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var diaryApp = angular.module("diaryApp", []);
+
+        diaryApp.controller("diaryController", function ($scope, $http) {
+            $scope.showDialog = false;
+
+            // Function to fetch all entries from the database
+            $scope.getAllEntries = function () {
+                $http
+                    .get("/get-all-entries")
+                    .then(function (response) {
+                        $scope.entries = response.data;
+                    })
+                    .catch(function (error) {
+                        console.error("Error fetching entries: ", error);
+                    });
+            };
+
+            // Call the function to fetch all entries when the controller is initialized
+            $scope.getAllEntries();
+
+            $scope.updateEntry = function (id) {
+                const entryToUpdate = $scope.entries.find((entry) => entry._id === id);
+                $http
+                    .put(`/update-entry/${id}`, {
+                        date: entryToUpdate.date,
+                        content: entryToUpdate.content,
+                    })
+                    .then(function (response) {
+                        const updatedEntryIndex = $scope.entries.findIndex(
+                            (entry) => entry._id === id
+                        );
+                        $scope.entries[updatedEntryIndex] = response.data;
+                        $scope.closeDialog();
+                    })
+                    .catch(function (error) {
+                        console.error("Error updating entry: ", error);
+                        $scope.dialogTitle = "Error";
+                        $scope.dialogMessage = "Internal server error";
+                        $scope.showDialog = true;
+                    });
+            };
+
+            $scope.deleteEntry = function (id) {
+                $http
+                    .delete(`/delete-entry/${id}`)
+                    .then(function () {
+                        $scope.entries = $scope.entries.filter((entry) => entry._id !== id);
+                        $scope.closeDialog();
+                    })
+                    .catch(function (error) {
+                        console.error("Error deleting entry: ", error);
+                        $scope.dialogTitle = "Error";
+                        $scope.dialogMessage = "Internal server error";
+                        $scope.showDialog = true;
+                    });
+            };
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html ng-app="diaryApp">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digital Diary App</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body ng-controller="diaryController">
+    <div class="container">
+        <div class="header">
+            <nav>
+                <h1>Digital Diary</h1>
+                <ul>
+                    <li><a href="index.html">Home </a></li>
+                    <li><a href="entries.html">Modify Entry</a></li>
+                </ul>
+            </nav>
+        </div>
+
+        <div class="form">
+            <!-- Form for adding diary entries -->
+            <form id="addEntryForm" ng-submit="addEntry()">
+                <input type="date" id="date" ng-model="date" placeholder="Enter entry date" />
+                <textarea id="content" ng-model="content" placeholder="Enter entry content" rows="15"></textarea>
+                <button type="submit">Add Entry</button>
+            </form>
+        </div>
+
+        <div class="container2">
+            <!-- Display all diary entries -->
+            <h2>All Entries</h2>
+            <div ng-repeat="entry in entries" class="entry-item">
+                <h3>Date: {{ entry.date | date:'yyyy-MM-dd' }}</h3>
+                <p>Diary Entry: </p>{{ entry.content }}
+            </div>
+            
+            <div ng-if="entries.length === 0">
+                <p>No entries found.</p>
+            </div>
+              </div>
+    </div>
+
+    <script>
+        var diaryApp = angular.module("diaryApp", []);
+
+        diaryApp.controller("diaryController", function ($scope, $http) {
+            $scope.showDialog = false;
+
+            //  fetch all entries from the database
+            $scope.getAllEntries = function () {
+                $http
+                    .get("/get-all-entries")
+                    .then(function (response) {
+                        $scope.entries = response.data;
+                    })
+                    .catch(function (error) {
+                        console.error("Error fetching entries: ", error);
+                    });
+            };
+
+            // Call the function to fetch all entries when the controller is initialized
+            $scope.getAllEntries();
+
+            $scope.addEntry = function () {
+                $http
+                    .post("/add-entry", { date: $scope.date, content: $scope.content })
+                    .then(function (response) {
+                        $scope.dialogTitle = "Entry Added";
+                        $scope.dialogMessage = [{ date: $scope.date, content: $scope.content }];
+                        $scope.showDialog = true;
+                        // Reset the input fields
+                        $scope.date = "";
+                        $scope.content = "";
+                        $scope.getAllEntries();
+                    })
+                    .catch(function (error) {
+                        console.error("Error adding entry: ", error);
+                        $scope.dialogTitle = "Error";
+                        $scope.dialogMessage = "Internal server error";
+                        $scope.showDialog = true;
+                    });
+            };
+
+            $scope.updateEntry = function (id) {
+                const entryToUpdate = $scope.entries.find((entry) => entry._id === id);
+                $http
+                    .put(`/update-entry/${id}`, {
+                        date: entryToUpdate.date,
+                        content: entryToUpdate.content,
+                    })
+                    .then(function (response) {
+                        const updatedEntryIndex = $scope.entries.findIndex(
+                            (entry) => entry._id === id
+                        );
+                        $scope.entries[updatedEntryIndex] = response.data;
+                        $scope.closeDialog();
+                    })
+                    .catch(function (error) {
+                        console.error("Error updating entry: ", error);
+                        $scope.dialogTitle = "Error";
+                        $scope.dialogMessage = "Internal server error";
+                        $scope.showDialog = true;
+                    });
+            };
+
+            $scope.deleteEntry = function (id) {
+                $http
+                    .delete(`/delete-entry/${id}`)
+                    .then(function () {
+                        $scope.entries = $scope.entries.filter((entry) => entry._id !== id);
+                        $scope.closeDialog();
+                    })
+                    .catch(function (error) {
+                        console.error("Error deleting entry: ", error);
+                        $scope.dialogTitle = "Error";
+                        $scope.dialogMessage = "Internal server error";
+                        $scope.showDialog = true;
+                    });
+            };
+        });
+    </script>
+</body>
+
+</html>
